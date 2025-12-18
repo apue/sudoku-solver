@@ -1,9 +1,16 @@
 PYTHON ?= 3.11
 
-.PHONY: help sync lint fmt test ci run-solve run-verify
+.PHONY: help bootstrap sync lint fmt test ci run-solve run-verify
 
 help:
-	@echo "Targets: sync lint fmt test ci run-solve run-verify"
+	@echo "Targets: bootstrap sync lint fmt test ci run-solve run-verify"
+
+# Ensure src/ package skeleton exists (for src/ layout packaging)
+bootstrap:
+	@[ -f src/sudoku_solver/__init__.py ] || \
+	(mkdir -p src/sudoku_solver && \
+	 echo '"""Sudoku Solver package"""' > src/sudoku_solver/__init__.py && \
+	 echo 'bootstrapped src/sudoku_solver/__init__.py')
 
 # Create/refresh env and install deps via uv
 sync:
@@ -26,4 +33,3 @@ run-solve:
 
 run-verify:
 	uv run sudoku-solver verify examples/puzzle_easy.json --solution examples/solution_easy.json
-

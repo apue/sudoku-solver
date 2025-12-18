@@ -50,6 +50,11 @@
 - 状态语义：`unique | multiple | unsat`；`unsat` 时 `solution=null`。
 - `--trace` 默认关闭；开启后输出 `trace.enabled=true` 与 `steps`；`--trace-file` 可额外写文件。
 
+## Bootstrap & Troubleshooting
+- 本仓库采用 `src/` 布局，需存在 `src/sudoku_solver/` 包。请勿删除。
+- 全新环境若 `uv sync` 报错“'src' does not exist”：先运行 `make bootstrap`，再执行 `make sync`。
+- 若受限环境报 sandbox/权限问题：请在本地普通 Shell 或 CI 中运行命令。
+
 ## Security & Configuration Tips
 - 离线运行：不依赖网络；示例数据存放在 `examples/`。
 - 可复现：避免隐藏全局；必要时显式传入随机种子。

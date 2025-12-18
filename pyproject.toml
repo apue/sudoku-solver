@@ -5,7 +5,7 @@ description = "Offline 9x9 Sudoku solver with stats/trace (v1 backtracking)."
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [{ name = "Maintainers" }]
-license = { file = "LICENSE" }
+license = "MIT"
 
 # CLI entry point per docs (module to be implemented under src/sudoku_solver/cli.py)
 scripts = { "sudoku-solver" = "sudoku_solver.cli:main" }
@@ -35,4 +35,3 @@ testpaths = ["tests"]
 line-length = 100
 target-version = "py311"
 extend-exclude = [".venv", "dist", "build"]
-

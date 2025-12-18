@@ -17,6 +17,12 @@
 uv sync
 ```
 
+若遇到构建错误（例如提示 `src` 不存在），先执行：
+
+```bash
+make bootstrap && make sync
+```
+
 ### 求解
 
 ```bash
