@@ -59,3 +59,37 @@ class Tracer:
         if self.mode == "summary":
             return {"enabled": True, "mode": "summary", "counts": dict(self.counts)}
         return {"enabled": True, "mode": "steps", "steps": list(self.steps)}
+
+
+class TraceSink:
+    """Adapter sink that maps Recorder events to a Tracer instance."""
+
+    def __init__(self, tracer: Tracer) -> None:
+        self._t = tracer
+
+    # decision
+    def decision_choose_cell(self, r: int, c: int, depth: int) -> None:
+        self._t.choose_cell(r, c, depth)
+
+    def decision_guess_point(self, depth: int) -> None:  # noqa: ARG002
+        # Not a dedicated tracer event; represented implicitly by choose_cell
+        pass
+
+    # attempt
+    def attempt_assign(self, r: int, c: int, v: int, source: str, depth: int) -> None:  # noqa: ARG002
+        self._t.assign(r, c, v, depth=depth)
+
+    def attempt_contradiction(self, r: int, c: int, v: int | None, reason: str, depth: int | None) -> None:  # noqa: ARG002
+        self._t.contradiction(r, c, depth=depth or 0, reason=reason)
+
+    # state
+    def state_unassign(self, r: int, c: int, v: int, reason: str, depth: int | None) -> None:  # noqa: ARG002
+        self._t.unassign(r, c, v, depth=depth or 0)
+
+    # search
+    def search_update_depth(self, depth: int) -> None:  # noqa: ARG002
+        pass
+
+    # result
+    def result_solution_found(self) -> None:
+        self._t.solution_found()

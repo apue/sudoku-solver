@@ -50,6 +50,12 @@
 - 状态语义：`unique | multiple | unsat`；`unsat` 时 `solution=null`。
 - `--trace` 默认关闭；开启后输出 `trace.enabled=true` 与 `steps`；`--trace-file` 可额外写文件。
 
+## 结果持久化（SQLite）
+- 默认开启：`solve` 内部会在 verify 成功后写入 SQLite（`var/results.sqlite3`）。
+- 关闭与路径：`--no-db` 可禁用；或设置 `SUDOKU_DB_DISABLE=1`。`--db PATH`/`SUDOKU_DB_PATH` 可指定路径。
+- 表结构：见 `docs/design/db-design.md`；仅插入单行结果快照（包含 metrics）。
+- 版本控制：数据库文件不入库（`.gitignore` 已忽略），若需追踪趋势请使用 `make db.export` 生成 CSV。
+
 ## Bootstrap & Troubleshooting
 - 本仓库采用 `src/` 布局，需存在 `src/sudoku_solver/` 包。请勿删除。
 - 全新环境若 `uv sync` 报错“'src' does not exist”：先运行 `make bootstrap`，再执行 `make sync`。

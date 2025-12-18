@@ -9,7 +9,8 @@
 并提供两类输出：
 
 - **stats**：始终输出的统计信息（回溯次数等）
-- **trace**：默认关闭，使用 `--trace` 打开（用于后续“教学模式/解释输出”）
+- **metrics**：事件驱动聚合指标，字段见 `docs/metric.md`
+- **trace**：默认关闭，`--trace`/`--trace-summary` 打开（教学/汇总）
 
 ## 安装与运行（uv）
 
@@ -34,6 +35,10 @@ uv run sudoku-solver solve examples/puzzle_easy.json --trace
 
 # 开启 trace 并写入文件（同时 stdout 仍输出结果 JSON）
 uv run sudoku-solver solve examples/puzzle_easy.json --trace --trace-file trace.json
+
+# 结果持久化（SQLite，默认开启，verify 成功后落库）
+uv run sudoku-solver solve examples/puzzle_easy.json --db var/results.sqlite3   # 自定义路径
+uv run sudoku-solver solve examples/puzzle_easy.json --no-db                    # 禁用持久化
 ```
 
 ### 验证
@@ -79,5 +84,12 @@ uv run sudoku-solver verify examples/puzzle_easy.json --solution examples/soluti
 - I/O 契约：`docs/design/io.md`
 - 回溯语义：`docs/design/solver_backtracking.md`
 - Trace/Stats：`docs/design/trace.md`
+- Metrics：`docs/metric.md` 与 `docs/design/metrics-collector-design.md`
+- DB Schema：`docs/design/db-design.md`
 - 目录与依赖约束：`codemap.md`
 - 路线图：`docs/ROADMAP.md`
+
+## 结果数据库与版本控制
+
+- 本地 SQLite 默认路径：`var/results.sqlite3`（已在 `.gitignore` 中忽略）。
+- 建议将数据作为导出快照提交：`make db.export` 生成 CSV。
