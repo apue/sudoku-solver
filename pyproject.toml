@@ -1,0 +1,38 @@
+[project]
+name = "sudoku-solver"
+version = "0.1.0"
+description = "Offline 9x9 Sudoku solver with stats/trace (v1 backtracking)."
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "Maintainers" }]
+license = { file = "LICENSE" }
+
+# CLI entry point per docs (module to be implemented under src/sudoku_solver/cli.py)
+scripts = { "sudoku-solver" = "sudoku_solver.cli:main" }
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["sudoku_solver*"]
+
+[tool.uv]
+dev-dependencies = [
+  "pytest>=7.4",
+  "hypothesis>=6.88",
+]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = [".venv", "dist", "build"]
+
