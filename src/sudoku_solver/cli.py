@@ -1,6 +1,7 @@
-"""Command-line interface entry for sudoku-solver (v1 placeholder).
+"""Command-line interface entry for sudoku-solver (v1).
 
 User-facing strings are Simplified Chinese; code uses English identifiers.
+Follows the contracts in docs/design/io.md and docs/design/trace.md.
 """
 from __future__ import annotations
 
@@ -9,38 +10,50 @@ import json
 import sys
 from pathlib import Path
 
+from sudoku_solver.io.json_io import load_puzzle, load_solution_grid
+from sudoku_solver.solver.backtracking import solve_backtracking
+from sudoku_solver.verify.verify import verify as verify_solution
+from dataclasses import asdict
+
 
 def _cmd_solve(args: argparse.Namespace) -> int:
-    """Placeholder solve command matching README contract.
-
-    Prints a simple JSON stub to stdout to validate the CLI wiring.
-    """
-    puzzle_path = Path(args.puzzle)
-    if not puzzle_path.exists():
-        print(f"找不到输入文件：{puzzle_path}", file=sys.stderr)
+    """Solve a puzzle JSON and print result JSON to stdout."""
+    try:
+        puzzle = load_puzzle(args.puzzle)
+    except Exception as e:  # noqa: BLE001
+        print(f"输入无效：{e}", file=sys.stderr)
         return 2
-    # Minimal echo to confirm flow; not an actual solver.
+
+    trace_enabled = bool(getattr(args, "trace", False) or getattr(args, "trace_summary", False))
+    sr = solve_backtracking(
+        puzzle,
+        trace_enabled=trace_enabled,
+        trace_summary=bool(getattr(args, "trace_summary", False)),
+    )
     result = {
-        "status": "unsat",
-        "solution": None,
-        "stats": {"calls": 0, "assignments": 0, "backtracks": 0, "max_depth": 0},
-        "trace": {"enabled": bool(args.trace), "steps": []},
+        "status": sr.status,
+        "solution": sr.solution,
+        "stats": asdict(sr.stats),
+        "trace": sr.trace if sr.trace is not None else {"enabled": False, "steps": []},
     }
-    print(json.dumps(result, ensure_ascii=False))
-    if args.trace and args.trace_file:
-        Path(args.trace_file).write_text(json.dumps(result["trace"], ensure_ascii=False))
+    out = json.dumps(result, ensure_ascii=False, indent=2)
+    print(out)
+    if getattr(args, "trace", False) and args.trace_file:
+        Path(args.trace_file).write_text(json.dumps(result["trace"], ensure_ascii=False, indent=2))
+    if getattr(args, "trace_summary", False) and args.trace_file:
+        Path(args.trace_file).write_text(json.dumps(result["trace"], ensure_ascii=False, indent=2))
     return 0
 
 
 def _cmd_verify(args: argparse.Namespace) -> int:
-    """Placeholder verify command: only checks files exist."""
-    puzzle_path = Path(args.puzzle)
-    solution_path = Path(args.solution)
-    missing = [p for p in (puzzle_path, solution_path) if not Path(p).exists()]
-    if missing:
-        print("找不到文件：" + ", ".join(map(str, missing)), file=sys.stderr)
+    try:
+        puzzle = load_puzzle(args.puzzle)
+        solution = load_solution_grid(args.solution)
+    except Exception as e:  # noqa: BLE001
+        print(f"输入无效：{e}", file=sys.stderr)
         return 2
-    print("{\"ok\": true, \"reason\": \"placeholder\"}")
+    ok = verify_solution(puzzle, solution)
+    print(json.dumps({"ok": bool(ok)}))
     return 0
 
 
@@ -53,7 +66,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_solve = sub.add_parser("solve", help="求解一个数独 JSON 文件")
     p_solve.add_argument("puzzle", help="输入 JSON 文件路径")
-    p_solve.add_argument("--trace", action="store_true", help="开启 trace 记录")
+    grp = p_solve.add_mutually_exclusive_group()
+    grp.add_argument("--trace", action="store_true", help="开启 trace 步骤记录")
+    grp.add_argument("--trace-summary", action="store_true", help="开启 trace 汇总模式（仅输出计数，不包含步骤）")
     p_solve.add_argument("--trace-file", help="将 trace 写入文件")
     p_solve.set_defaults(func=_cmd_solve)
 
@@ -73,4 +88,3 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":  # pragma: no cover
     raise SystemExit(main())
-
