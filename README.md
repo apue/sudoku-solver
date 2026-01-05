@@ -1,6 +1,6 @@
 # sudoku-solver
 
-一个**离线运行**的标准 9×9 数独求解器（v1：纯回溯），支持：
+一个**离线运行**的标准 9×9 数独求解器（v1.1：回溯 + 裸显单/隐显单 推理），支持：
 
 - **唯一解**（`status=unique`）
 - **多解**（`status=multiple`，会返回其中任意一个解）
@@ -11,6 +11,7 @@
 - **stats**：始终输出的统计信息（回溯次数等）
 - **metrics**：事件驱动聚合指标，字段见 `docs/metric.md`
 - **trace**：默认关闭，`--trace` 打开 summary；详细步骤将在后续版本提供
+- **候选推理**：默认启用 naked single / hidden single，填不动时再回溯；`--no-deductions` 可回退为纯回溯
 
 ## 安装与运行（uv）
 
@@ -35,6 +36,9 @@ uv run sudoku-solver solve examples/puzzle_easy.json --trace
 
 # 自定义 trace 文件路径（若不指定则写入 var/traces/<puzzle>.<ts>.trace.json）
 uv run sudoku-solver solve examples/puzzle_easy.json --trace --trace-file trace.json
+
+# 禁用候选推理，退回纯回溯
+uv run sudoku-solver solve examples/puzzle_easy.json --no-deductions
 
 # 结果持久化（SQLite，默认开启，verify 成功后落库）
 uv run sudoku-solver solve examples/puzzle_easy.json --db var/results.sqlite3   # 自定义路径
@@ -93,3 +97,4 @@ uv run sudoku-solver verify examples/puzzle_easy.json --solution examples/soluti
 
 - 本地 SQLite 默认路径：`var/results.sqlite3`（已在 `.gitignore` 中忽略）。
 - 建议将数据作为导出快照提交：`make db.export` 生成 CSV。
+- Trace 文件默认写入 `var/traces/`，可用 `SUDOKU_TRACE_DIR` 自定义；该目录同样已忽略。

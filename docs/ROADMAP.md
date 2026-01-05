@@ -19,10 +19,10 @@ Done 标准：
 
 ## v1.1：候选集 + 单元唯一（更像人类推理）
 
-- 候选初始化 + 传播
-- `naked_single` / `hidden_single`
-- 在不回溯的情况下尽量推进；卡住再回溯
-- stats 增加：`deductions` / `guesses`
+- ✅ 候选初始化 + 传播
+- ✅ `naked_single` / `hidden_single`
+- ✅ 在不回溯的情况下尽量推进；卡住再回溯
+- ✅ stats/metrics 记录 `deduced_assignments`
 
 ## v2：规则系统 + policy 对比
 
