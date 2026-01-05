@@ -3,8 +3,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
-
 from sudoku_solver.board.grid import Grid
 from sudoku_solver.io.json_io import load_puzzle
 from sudoku_solver.solver.backtracking import solve_backtracking
@@ -31,14 +29,9 @@ def test_solve_unsat_on_conflict_input(conflict_puzzle_path: Path) -> None:
     assert metrics["status"] == "unsat"
 
 
-@pytest.mark.parametrize("trace_summary", [False, True])
-def test_trace_modes(trace_summary: bool, positive_puzzle_path: Path) -> None:
+def test_trace_summary_mode_only(positive_puzzle_path: Path) -> None:
     grid = load_puzzle(positive_puzzle_path)
-    result, _ = solve_backtracking(grid, trace_enabled=True, trace_summary=trace_summary)
+    result, _ = solve_backtracking(grid, trace_enabled=True, trace_mode="summary")
     assert result.trace is not None
-    if trace_summary:
-        assert result.trace["mode"] == "summary"
-        assert "counts" in result.trace
-    else:
-        assert result.trace["mode"] == "steps"
-        assert result.trace["steps"], "steps should record events when enabled"
+    assert result.trace["mode"] == "summary"
+    assert "counts" in result.trace

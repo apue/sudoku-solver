@@ -39,7 +39,7 @@
   "status": "unique",
   "solution": [[...9], ... 9],
   "stats": { "calls": 0, "backtracks": 0, "assignments": 0, "max_depth": 0 },
-  "trace": { "enabled": false, "steps": [] }
+  "trace": { "enabled": false, "mode": "summary", "counts": {} }
 }
 ```
 
@@ -65,7 +65,7 @@
 ### `trace`（可选）
 
 - 默认（未开启 `--trace`）：可以省略 `trace` 字段，或输出 `trace.enabled=false`
-- 开启 `--trace`：必须输出 `trace.enabled=true` 且包含 `steps`（详见 `docs/design/trace.md`）
+- 开启 `--trace`：输出 summary 模式（`mode=summary` + `counts`）。v1 不再导出逐步 `steps`
 
 ## 示例文件约定（建议）
 
@@ -75,4 +75,3 @@
 ```json
 { "grid": [[...9], ... 9] }
 ```
-

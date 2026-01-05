@@ -33,3 +33,10 @@ def example_solution_path(project_root: Path) -> Path:
 @pytest.fixture()
 def disable_db(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SUDOKU_DB_DISABLE", "1")
+
+
+@pytest.fixture()
+def trace_dir(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
+    path = tmp_path / "trace-artifacts"
+    monkeypatch.setenv("SUDOKU_TRACE_DIR", str(path))
+    return path
