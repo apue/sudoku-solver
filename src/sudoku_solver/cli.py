@@ -7,17 +7,22 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
-from pathlib import Path
 import os
+import sys
 import time
+from pathlib import Path
+from uuid import uuid4
 
+from dataclasses import asdict
+
+from sudoku_solver.db.sqlite_writer import SQLiteResultWriter
+from sudoku_solver.db.writer import build_row_from_outputs
 from sudoku_solver.io.json_io import load_puzzle, load_solution_grid
 from sudoku_solver.solver.backtracking import solve_backtracking
 from sudoku_solver.verify.verify import verify as verify_solution
-from dataclasses import asdict
-from sudoku_solver.db.sqlite_writer import SQLiteResultWriter
-from sudoku_solver.db.writer import build_row_from_outputs
+
+TRACE_DIR_ENV = "SUDOKU_TRACE_DIR"
+DEFAULT_TRACE_DIR = Path("var/traces")
 
 
 def _db_is_enabled(args: argparse.Namespace) -> bool:
@@ -34,6 +39,28 @@ def _db_path(args: argparse.Namespace) -> Path:
     return Path(p)
 
 
+def _trace_requested(args: argparse.Namespace) -> bool:
+    return bool(getattr(args, "trace", False))
+
+
+def _default_trace_target(args: argparse.Namespace) -> Path:
+    base = Path(os.getenv(TRACE_DIR_ENV, str(DEFAULT_TRACE_DIR)))
+    base.mkdir(parents=True, exist_ok=True)
+    puzzle_name = Path(args.puzzle).stem or "puzzle"
+    stamp = time.strftime("%Y%m%dT%H%M%S")
+    suffix = uuid4().hex[:6]
+    return base / f"{puzzle_name}.{stamp}.{suffix}.trace.json"
+
+
+def _write_trace_file(args: argparse.Namespace, trace_obj: dict | None) -> None:
+    if not _trace_requested(args) or trace_obj is None:
+        return
+    trace_file = getattr(args, "trace_file", None)
+    target = Path(trace_file) if trace_file else _default_trace_target(args)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(json.dumps(trace_obj, ensure_ascii=False, indent=2))
+
+
 def _cmd_solve(args: argparse.Namespace) -> int:
     """Solve a puzzle JSON and print result JSON to stdout."""
     try:
@@ -43,11 +70,11 @@ def _cmd_solve(args: argparse.Namespace) -> int:
         return 2
 
     t0 = time.perf_counter()
-    trace_enabled = bool(getattr(args, "trace", False) or getattr(args, "trace_summary", False))
+    trace_enabled = _trace_requested(args)
     sr, metrics = solve_backtracking(
         puzzle,
         trace_enabled=trace_enabled,
-        trace_summary=bool(getattr(args, "trace_summary", False)),
+        trace_mode="summary",
     )
     # verify 成功才认为可持久化
     verify_ok = False
@@ -61,24 +88,17 @@ def _cmd_solve(args: argparse.Namespace) -> int:
     # 默认方法标识（仅回溯）
     method = "bt"
 
+    trace_obj = sr.trace if sr.trace is not None else {"enabled": False, "mode": "summary", "counts": {}}
     result = {
         "status": sr.status,
         "solution": sr.solution,
         "stats": asdict(sr.stats),
-        "trace": sr.trace if sr.trace is not None else {"enabled": False, "steps": []},
+        "trace": trace_obj,
         "metrics": metrics,
     }
     out = json.dumps(result, ensure_ascii=False, indent=2)
     print(out)
-    if getattr(args, "trace", False) and args.trace_file:
-        Path(args.trace_file).write_text(json.dumps(result["trace"], ensure_ascii=False, indent=2))
-    if getattr(args, "trace_summary", False) and args.trace_file:
-        Path(args.trace_file).write_text(json.dumps(result["trace"], ensure_ascii=False, indent=2))
-    # 可选：将 trace 写入文件
-    if getattr(args, "trace", False) and args.trace_file:
-        Path(args.trace_file).write_text(json.dumps(result["trace"], ensure_ascii=False, indent=2))
-    if getattr(args, "trace_summary", False) and args.trace_file:
-        Path(args.trace_file).write_text(json.dumps(result["trace"], ensure_ascii=False, indent=2))
+    _write_trace_file(args, trace_obj)
 
     # DB 默认开启，verify 成功后写入
     if _db_is_enabled(args) and verify_ok:
@@ -120,10 +140,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_solve = sub.add_parser("solve", help="求解一个数独 JSON 文件")
     p_solve.add_argument("puzzle", help="输入 JSON 文件路径")
-    grp = p_solve.add_mutually_exclusive_group()
-    grp.add_argument("--trace", action="store_true", help="开启 trace 步骤记录")
-    grp.add_argument("--trace-summary", action="store_true", help="开启 trace 汇总模式（仅输出计数，不包含步骤）")
-    p_solve.add_argument("--trace-file", help="将 trace 写入文件")
+    p_solve.add_argument("--trace", action="store_true", help="开启 trace summary（mode=summary）")
+    p_solve.add_argument("--trace-file", help="将 trace summary 写入文件（默认写入 var/traces/）")
     # DB 开关/路径
     p_solve.add_argument("--db", help="结果持久化 SQLite 路径（默认 var/results.sqlite3）")
     p_solve.add_argument("--no-db", action="store_true", help="禁用结果持久化（默认开启，verify 成功后写入）")

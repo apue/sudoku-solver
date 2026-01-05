@@ -10,7 +10,7 @@
 
 - **stats**：始终输出的统计信息（回溯次数等）
 - **metrics**：事件驱动聚合指标，字段见 `docs/metric.md`
-- **trace**：默认关闭，`--trace`/`--trace-summary` 打开（教学/汇总）
+- **trace**：默认关闭，`--trace` 打开 summary；详细步骤将在后续版本提供
 
 ## 安装与运行（uv）
 
@@ -27,13 +27,13 @@ make bootstrap && make sync
 ### 求解
 
 ```bash
-# 求解（默认：只输出 stats，不输出 trace steps）
+# 求解（默认：只输出 stats，不输出 trace summary）
 uv run sudoku-solver solve examples/puzzle_easy.json
 
-# 开启 trace（输出到 stdout）
+# 开启 trace summary（stdout 附带 summary JSON，trace 文件默认写入 var/traces/...）
 uv run sudoku-solver solve examples/puzzle_easy.json --trace
 
-# 开启 trace 并写入文件（同时 stdout 仍输出结果 JSON）
+# 自定义 trace 文件路径（若不指定则写入 var/traces/<puzzle>.<ts>.trace.json）
 uv run sudoku-solver solve examples/puzzle_easy.json --trace --trace-file trace.json
 
 # 结果持久化（SQLite，默认开启，verify 成功后落库）

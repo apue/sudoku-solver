@@ -54,17 +54,16 @@ def _search(grid: Grid, depth: int, rec: Recorder, ctr: _Counter, solutions: Lis
             rec.attempt.contradiction(r, c, v, reason="invalid_candidate", depth=depth)
 
 
-def solve_backtracking(grid: Grid, trace_enabled: bool = False, trace_summary: bool = False, max_solutions: int = 2):
+def solve_backtracking(grid: Grid, trace_enabled: bool = False, trace_mode: str = "summary", max_solutions: int = 2):
     """Solve a Sudoku using DFS backtracking and detect up to 2 solutions."""
-    mode = "summary" if (trace_enabled and trace_summary) else "steps"
     if grid.givens_conflict():
         # No solutions if givens already conflict
         stats = Stats(calls=0, assignments=0, backtracks=0, max_depth=0)
-        tracer = Tracer(enabled=trace_enabled, mode=mode)
+        tracer = Tracer(enabled=trace_enabled, mode=trace_mode)
         metrics = MetricsCollector()
         return SolveResult(status="unsat", solution=None, stats=stats, trace=tracer.to_json_obj()), metrics.finalize("unsat")
 
-    tracer = Tracer(enabled=trace_enabled, mode=mode)
+    tracer = Tracer(enabled=trace_enabled, mode=trace_mode)
     trace_sink = TraceSink(tracer)
     metrics = MetricsCollector()
     rec = Recorder([metrics, trace_sink])
