@@ -34,6 +34,13 @@ def _db_path(args: argparse.Namespace) -> Path:
     return Path(p)
 
 
+def _write_trace_file(args: argparse.Namespace, trace_obj: dict | None) -> None:
+    trace_file = getattr(args, "trace_file", None)
+    trace_requested = bool(getattr(args, "trace", False) or getattr(args, "trace_summary", False))
+    if trace_file and trace_requested and trace_obj is not None:
+        Path(trace_file).write_text(json.dumps(trace_obj, ensure_ascii=False, indent=2))
+
+
 def _cmd_solve(args: argparse.Namespace) -> int:
     """Solve a puzzle JSON and print result JSON to stdout."""
     try:
@@ -61,24 +68,17 @@ def _cmd_solve(args: argparse.Namespace) -> int:
     # 默认方法标识（仅回溯）
     method = "bt"
 
+    trace_obj = sr.trace if sr.trace is not None else {"enabled": False, "steps": []}
     result = {
         "status": sr.status,
         "solution": sr.solution,
         "stats": asdict(sr.stats),
-        "trace": sr.trace if sr.trace is not None else {"enabled": False, "steps": []},
+        "trace": trace_obj,
         "metrics": metrics,
     }
     out = json.dumps(result, ensure_ascii=False, indent=2)
     print(out)
-    if getattr(args, "trace", False) and args.trace_file:
-        Path(args.trace_file).write_text(json.dumps(result["trace"], ensure_ascii=False, indent=2))
-    if getattr(args, "trace_summary", False) and args.trace_file:
-        Path(args.trace_file).write_text(json.dumps(result["trace"], ensure_ascii=False, indent=2))
-    # 可选：将 trace 写入文件
-    if getattr(args, "trace", False) and args.trace_file:
-        Path(args.trace_file).write_text(json.dumps(result["trace"], ensure_ascii=False, indent=2))
-    if getattr(args, "trace_summary", False) and args.trace_file:
-        Path(args.trace_file).write_text(json.dumps(result["trace"], ensure_ascii=False, indent=2))
+    _write_trace_file(args, trace_obj)
 
     # DB 默认开启，verify 成功后写入
     if _db_is_enabled(args) and verify_ok:

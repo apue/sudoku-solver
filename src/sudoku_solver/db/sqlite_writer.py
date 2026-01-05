@@ -6,8 +6,6 @@ from __future__ import annotations
 
 import sqlite3
 from pathlib import Path
-from typing import Optional
-
 from .writer import PersistRow, ResultWriter
 
 
@@ -68,4 +66,3 @@ class SQLiteResultWriter(ResultWriter):
                     row.created_at,
                 ),
             )
-
