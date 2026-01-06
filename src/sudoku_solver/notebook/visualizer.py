@@ -208,7 +208,7 @@ def _candidate_grid_html(candidates: Iterable[int]) -> str:
         "width:100%;height:100%;display:grid;grid-template-columns:repeat(3,1fr);"
         "grid-template-rows:repeat(3,1fr);align-items:center;justify-items:center;"
         f"font-size:{CANDIDATE_FONT_PX}px;line-height:1;"
-        "font-variant-numeric:tabular-nums;font-feature-settings:'tnum' 1;"
+        "font-variant-numeric:tabular-nums;font-feature-settings:\"tnum\" 1;"
     )
     cell_style = "width:100%;height:100%;display:flex;align-items:center;justify-content:center;"
     cells = []
