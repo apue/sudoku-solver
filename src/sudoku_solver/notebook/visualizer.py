@@ -194,16 +194,25 @@ def _display_widget(widget):
     ipy_display(widget)
 
 
+def _format_candidate_grid(candidates: Iterable[int]) -> str:
+    slots = [" "] * 9
+    for v in candidates:
+        if 1 <= v <= 9:
+            slots[v - 1] = str(v)
+    rows = ["".join(slots[i : i + 3]) for i in range(0, 9, 3)]
+    return "\n".join(rows)
+
+
 def _cell_html(value: int, candidates: Iterable[int], highlight: Optional[str]) -> str:
     base_style = "border:1px solid #999;height:40px;width:40px;display:flex;align-items:center;justify-content:center;font-size:20px;"
-    empty_style = "font-size:12px;line-height:1.1;white-space:pre-wrap;"
+    empty_style = "font-size:12px;line-height:1.1;white-space:pre;text-align:center;font-family:'Courier New',monospace;"
     if highlight == "assign":
         base_style += "background-color:#e0ffe0;"
     elif highlight == "eliminate":
         base_style += "background-color:#ffe0e0;"
     if value:
         return f"<div style='{base_style}'><strong>{value}</strong></div>"
-    cand_text = "".join(str(v) for v in sorted(candidates)) or ""
+    cand_text = _format_candidate_grid(sorted(candidates))
     return f"<div style='{base_style}{empty_style}'>{cand_text}</div>"
 
 
