@@ -24,6 +24,18 @@ def test_cli_solve_outputs_json(positive_puzzle_path: Path, tmp_path: Path, disa
     assert trace_data["mode"] == "summary"
 
 
+def test_cli_can_disable_deductions(positive_puzzle_path: Path, disable_db: None, capsys) -> None:  # noqa: ANN001
+    exit_code = cli.main([
+        "solve",
+        str(positive_puzzle_path),
+        "--no-deductions",
+    ])
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    result = json.loads(captured.out)
+    assert result["metrics"]["deduced_assignments"] == 0
+
+
 def test_cli_solve_without_trace_file_uses_env_dir(
     positive_puzzle_path: Path,
     disable_db: None,  # noqa: ANN001

@@ -35,3 +35,15 @@ def test_trace_summary_mode_only(positive_puzzle_path: Path) -> None:
     assert result.trace is not None
     assert result.trace["mode"] == "summary"
     assert "counts" in result.trace
+
+
+def test_deductions_emit_metrics(positive_puzzle_path: Path) -> None:
+    grid = load_puzzle(positive_puzzle_path)
+    _, metrics = solve_backtracking(grid, use_deductions=True)
+    assert metrics["deduced_assignments"] > 0
+
+
+def test_no_deductions_can_be_disabled(positive_puzzle_path: Path) -> None:
+    grid = load_puzzle(positive_puzzle_path)
+    _, metrics = solve_backtracking(grid, use_deductions=False)
+    assert metrics["deduced_assignments"] == 0
