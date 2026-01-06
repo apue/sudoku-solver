@@ -30,3 +30,10 @@ v2 已输出策略步骤 schema，可直接供 v3 Notebook/Web UI 消费。接�
 > 若仅需统计，可读取 `trace.strategy_counts` 或 `metrics["strategy_hits"]`。
 >
 > Notebook / Web UI 可直接加载 CLI 输出 JSON，无需额外 API。
+
+## Notebook Helper
+
+- 模块：`sudoku_solver.notebook.visualizer`
+- `solve_for_notebook(path, policy)`：返回 `NotebookRun(states, steps, metrics)`，方便 Notebook 缓存数据。
+- `build_policy_explorer(path, policy, notebook_run=None)`：生成 ipywidgets 控件（步骤 Slider + 策略过滤 + 候选高亮）。
+- 示例 Notebook：`notebooks/policy_explorer.ipynb`。

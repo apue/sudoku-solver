@@ -6,6 +6,8 @@
 
 ```
 .
+├── .jupyter
+│   └── jupyter_server_config.py
 ├── AGENTS.md
 ├── README.md
 ├── codemap.md
@@ -56,7 +58,13 @@
 │       │   ├── writer.py
 │       │   └── sqlite_writer.py
 │       ├── cli.py
+│       ├── notebook
+│       │   ├── __init__.py
+│       │   └── visualizer.py
 │       └── types.py
+├── notebooks
+│   ├── README.md
+│   └── policy_explorer.ipynb
 ├── scripts
 │   └── policy_benchmark.py
 ├── benchmarks
@@ -80,11 +88,13 @@
 - `metrics/`：聚合 Recorder 事件输出指标
 - `instrumentation/`：Recorder（事件总线），供 metrics/trace 共用
 - `db/`：结果持久化（SQLite）
+- `notebook/`：Notebook/ipywidgets 可视化 helper（不依赖 CLI）
 - `verify/`：验证器：验证解是否满足约束且不违背 givens
 - `cli.py`：命令行入口与中文用户提示；将输入/输出与核心逻辑粘合
 - `types.py`：公共数据类型（例如 `SolveStatus`, `SolveResult`）供各模块共享
 - `scripts/`：辅助脚本（policy benchmark）
 - `benchmarks/`：基准题库 / 说明
+- `.jupyter/`：项目内 Jupyter 配置（保存时自动清理输出）
 
 ## 依赖方向（强制）
 
@@ -96,4 +106,5 @@
 - `strategies` 不可依赖 `cli/io/trace`; 仅依赖 `board`, `types`
 - `metrics` 仅依赖 `types`
 - `instrumentation` 不依赖业务模块
+- `notebook` 可以依赖：`io`, `solver`, `strategies`, `trace`, `board`, `types`
 - 任何核心模块不得依赖 `cli`
