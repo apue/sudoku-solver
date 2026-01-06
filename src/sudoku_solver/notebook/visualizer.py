@@ -257,7 +257,7 @@ def build_policy_explorer(
     strategy_options = ["全部"] + run.available_strategies
     strategy_dropdown = widgets.Dropdown(options=strategy_options, description="策略")
     next_button = widgets.Button(description="跳到下一个")
-    board_output = widgets.Output()
+    board_output = widgets.Output(layout=widgets.Layout(border="none", overflow="visible"))
     text_output = widgets.Output()
     status_html = widgets.HTML()
 
