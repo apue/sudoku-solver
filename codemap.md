@@ -6,6 +6,8 @@
 
 ```
 .
+├── .jupyter
+│   └── jupyter_server_config.py
 ├── AGENTS.md
 ├── README.md
 ├── codemap.md
@@ -92,6 +94,7 @@
 - `types.py`：公共数据类型（例如 `SolveStatus`, `SolveResult`）供各模块共享
 - `scripts/`：辅助脚本（policy benchmark）
 - `benchmarks/`：基准题库 / 说明
+- `.jupyter/`：项目内 Jupyter 配置（保存时自动清理输出）
 
 ## 依赖方向（强制）
 

@@ -120,6 +120,8 @@ uv run sudoku-solver verify examples/puzzle_easy.json --solution examples/soluti
 ## Notebook 可视化（V2+）
 
 - 依赖：`uv pip install ipywidgets ipycanvas`。
-- 启动 `jupyter lab` 并打开 `notebooks/policy_explorer.ipynb`。
+- 启动（推荐，保存时自动清理输出以保持 notebook 干净）：
+  `JUPYTER_CONFIG_DIR="$PWD/.jupyter" uv run jupyter lab`
+- 打开 `notebooks/policy_explorer.ipynb`。
 - API：`from sudoku_solver.notebook.visualizer import build_policy_explorer, solve_for_notebook`。
 - Notebook 支持：装载 case、运行 `human-lite`（或自定义 policy），并通过控件逐步回放策略（包含候选/赋值高亮）。

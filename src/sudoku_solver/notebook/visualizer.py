@@ -13,6 +13,14 @@ from sudoku_solver.strategies.candidates import build_candidate_map
 Coord = Tuple[int, int]
 CandidateMap = Dict[Coord, set[int]]
 
+GRID_DIM = 9
+CELL_CONTENT_PX = 40
+CELL_BORDER_PX = 1
+CELL_OUTER_PX = CELL_CONTENT_PX + CELL_BORDER_PX * 2
+GRID_SIZE_PX = CELL_OUTER_PX * GRID_DIM
+VALUE_FONT_PX = 20
+CANDIDATE_FONT_PX = 11
+
 
 @dataclass
 class StrategyAssignment:
@@ -194,36 +202,54 @@ def _display_widget(widget):
     ipy_display(widget)
 
 
-def _format_candidate_grid(candidates: Iterable[int]) -> str:
-    slots = [" "] * 9
-    for v in candidates:
-        if 1 <= v <= 9:
-            slots[v - 1] = str(v)
-    rows = ["".join(slots[i : i + 3]) for i in range(0, 9, 3)]
-    return "\n".join(rows)
+def _candidate_grid_html(candidates: Iterable[int]) -> str:
+    present = {v for v in candidates if 1 <= v <= 9}
+    grid_style = (
+        "width:100%;height:100%;display:grid;grid-template-columns:repeat(3,1fr);"
+        "grid-template-rows:repeat(3,1fr);align-items:center;justify-items:center;"
+        f"font-size:{CANDIDATE_FONT_PX}px;line-height:1;"
+        "font-variant-numeric:tabular-nums;font-feature-settings:'tnum' 1;"
+    )
+    cell_style = "width:100%;height:100%;display:flex;align-items:center;justify-content:center;"
+    cells = []
+    for v in range(1, 10):
+        text = str(v) if v in present else ""
+        cells.append(f"<span style='{cell_style}'>{text}</span>")
+    return f"<div style='{grid_style}'>{''.join(cells)}</div>"
 
 
 def _cell_html(value: int, candidates: Iterable[int], highlight: Optional[str]) -> str:
-    base_style = "border:1px solid #999;height:40px;width:40px;display:flex;align-items:center;justify-content:center;font-size:20px;"
-    empty_style = "font-size:12px;line-height:1.1;white-space:pre;text-align:center;font-family:'Courier New',monospace;"
+    base_style = (
+        f"border:{CELL_BORDER_PX}px solid #999;"
+        f"height:{CELL_OUTER_PX}px;width:{CELL_OUTER_PX}px;"
+        "box-sizing:border-box;display:flex;align-items:center;justify-content:center;"
+    )
+    empty_style = "padding:0;"
     if highlight == "assign":
         base_style += "background-color:#e0ffe0;"
     elif highlight == "eliminate":
         base_style += "background-color:#ffe0e0;"
     if value:
-        return f"<div style='{base_style}'><strong>{value}</strong></div>"
-    cand_text = _format_candidate_grid(sorted(candidates))
-    return f"<div style='{base_style}{empty_style}'>{cand_text}</div>"
+        return f"<div style='{base_style}font-size:{VALUE_FONT_PX}px;'><strong>{value}</strong></div>"
+    cand_html = _candidate_grid_html(candidates)
+    return f"<div style='{base_style}{empty_style}'>{cand_html}</div>"
 
 
 def render_board_widget(state: BoardState, *, show_candidates: bool = True):
     """Render a board state as a ipywidgets grid."""
     widgets = _require_widgets()
-    grid = widgets.GridspecLayout(9, 9, width="370px", height="370px")
+    grid = widgets.GridspecLayout(
+        GRID_DIM,
+        GRID_DIM,
+        width=f"{GRID_SIZE_PX}px",
+        height=f"{GRID_SIZE_PX}px",
+    )
+    grid.layout.grid_template_columns = f"repeat({GRID_DIM}, {CELL_OUTER_PX}px)"
+    grid.layout.grid_template_rows = f"repeat({GRID_DIM}, {CELL_OUTER_PX}px)"
     highlight_assign = {(a.row, a.col) for a in (state.last_step.assignments if state.last_step else [])}
     highlight_elim = {(e.row, e.col) for e in (state.last_step.eliminations if state.last_step else [])}
-    for r in range(9):
-        for c in range(9):
+    for r in range(GRID_DIM):
+        for c in range(GRID_DIM):
             key = (r, c)
             highlight = None
             if key in highlight_assign:
@@ -231,7 +257,10 @@ def render_board_widget(state: BoardState, *, show_candidates: bool = True):
             elif key in highlight_elim:
                 highlight = "eliminate"
             candidates = state.candidates.get(key, []) if show_candidates else []
-            html = widgets.HTML(value=_cell_html(state.grid[r][c], candidates, highlight))
+            html = widgets.HTML(
+                value=_cell_html(state.grid[r][c], candidates, highlight),
+                layout=widgets.Layout(margin="0px"),
+            )
             grid[r, c] = html
     return grid
 
