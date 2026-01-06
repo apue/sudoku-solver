@@ -26,10 +26,11 @@ Done 标准：
 
 ## v2：规则系统 + policy 对比
 
-- 引入 `strategies/` 目录（pairs、pointing、claiming…）
-- policy 配置化（启用策略集合 + 顺序）
-- benchmark 脚本与题库格式
-- 输出对比指标与可视化（先 CSV，再考虑图表）
+- ✅ 引入 `strategies/` 目录（naked/hidden single, naked pair, pointing, claiming）
+- ✅ policy 配置化（`--policy` 与 `--strategies` 次序覆盖）
+- ✅ CLI 支持 `--compare-policy`、trace steps schema，为 v3 可解释性留接口
+- ✅ `scripts/policy_benchmark.py` + `benchmarks/` 说明，输出 CSV
+- 🔜 更复杂策略（x-wing 等）可在 2.x 阶段逐步加入
 
 ## v3：可解释性（教学模式）
 

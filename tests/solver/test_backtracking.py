@@ -41,9 +41,17 @@ def test_deductions_emit_metrics(positive_puzzle_path: Path) -> None:
     grid = load_puzzle(positive_puzzle_path)
     _, metrics = solve_backtracking(grid, use_deductions=True)
     assert metrics["deduced_assignments"] > 0
+    assert "strategy_hits" in metrics
+    assert isinstance(metrics["strategy_hits"], dict)
 
 
 def test_no_deductions_can_be_disabled(positive_puzzle_path: Path) -> None:
     grid = load_puzzle(positive_puzzle_path)
     _, metrics = solve_backtracking(grid, use_deductions=False)
     assert metrics["deduced_assignments"] == 0
+
+
+def test_strategy_policy_human_lite_runs(positive_puzzle_path: Path) -> None:
+    grid = load_puzzle(positive_puzzle_path)
+    result, _ = solve_backtracking(grid, strategy_policy="human-lite")
+    assert result.status in {"unique", "multiple"}

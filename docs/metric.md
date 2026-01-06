@@ -88,6 +88,7 @@
 | `first_guess_depth` | int \| null | 第一次发生猜测时的深度 |
 | `deduced_assignments` | int | 由确定性推理产生的赋值数量 |
 | `guessed_assignments` | int | 由搜索分支产生的赋值数量 |
+| `strategy_hits` | dict | 策略 -> 命中次数（v2 引入） |
 
 #### 语义说明
 - **Guess Point**：指 solver 在无确定性推进手段时，选择一个分支进行尝试
@@ -156,5 +157,7 @@ v1 阶段，solver 至少应输出以下字段：
   "num_guess_points": 0,
   "first_guess_depth": null,
   "deduced_assignments": 0,
-  "guessed_assignments": 0
+  "guessed_assignments": 0,
+  "strategy_hits": {"naked_single": 12}
 }
+```

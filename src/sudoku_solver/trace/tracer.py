@@ -22,6 +22,8 @@ class Tracer:
             "contradiction": 0,
             "solution_found": 0,
         }
+        self.strategy_counts: Dict[str, int] = {}
+        self.strategy_steps: List[Dict[str, Any]] = []
 
     def _add(self, event: Dict[str, Any]) -> None:
         if not self.enabled:
@@ -53,12 +55,48 @@ class Tracer:
         self.counts["solution_found"] += 1
         self._add({"type": "SOLUTION_FOUND"})
 
+    def strategy_step(
+        self,
+        *,
+        strategy: str,
+        depth: int,
+        description: str,
+        assignments: List[Dict[str, Any]],
+        eliminations: List[Dict[str, Any]],
+        metadata: Dict[str, Any] | None = None,
+    ) -> None:
+        if not self.enabled:
+            return
+        self.strategy_counts[strategy] = self.strategy_counts.get(strategy, 0) + 1
+        if self.mode != "steps":
+            return
+        payload = {
+            "strategy": strategy,
+            "depth": depth,
+            "description": description,
+            "assignments": assignments,
+            "eliminations": eliminations,
+            "metadata": metadata or {},
+        }
+        self.strategy_steps.append(payload)
+
     def to_json_obj(self) -> Dict[str, Any]:
         if not self.enabled:
             return {"enabled": False, "steps": []}
         if self.mode == "summary":
-            return {"enabled": True, "mode": "summary", "counts": dict(self.counts)}
-        return {"enabled": True, "mode": "steps", "steps": list(self.steps)}
+            return {
+                "enabled": True,
+                "mode": "summary",
+                "counts": dict(self.counts),
+                "strategy_counts": dict(self.strategy_counts),
+            }
+        return {
+            "enabled": True,
+            "mode": "steps",
+            "steps": list(self.steps),
+            "strategy_counts": dict(self.strategy_counts),
+            "strategy_steps": list(self.strategy_steps),
+        }
 
 
 class TraceSink:
@@ -93,3 +131,31 @@ class TraceSink:
     # result
     def result_solution_found(self) -> None:
         self._t.solution_found()
+
+    def strategy_step(self, step: Any, depth: int) -> None:
+        assignments = [
+            {
+                "cell": self._t._cell_1b(action.row, action.col),
+                "value": action.value,
+                "reason": action.reason,
+                "note": action.note,
+            }
+            for action in getattr(step, "assignments", [])
+        ]
+        eliminations = [
+            {
+                "cell": self._t._cell_1b(action.row, action.col),
+                "values": sorted(action.values),
+                "reason": action.reason,
+                "note": action.note,
+            }
+            for action in getattr(step, "eliminations", [])
+        ]
+        self._t.strategy_step(
+            strategy=getattr(step, "strategy", "unknown"),
+            depth=depth,
+            description=getattr(step, "description", ""),
+            assignments=assignments,
+            eliminations=eliminations,
+            metadata=getattr(step, "metadata", {}) or {},
+        )

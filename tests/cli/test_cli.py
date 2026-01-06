@@ -22,6 +22,7 @@ def test_cli_solve_outputs_json(positive_puzzle_path: Path, tmp_path: Path, disa
     trace_data = json.loads(trace_file.read_text())
     assert trace_data["enabled"] is True
     assert trace_data["mode"] == "summary"
+    assert "strategy_counts" in trace_data
 
 
 def test_cli_can_disable_deductions(positive_puzzle_path: Path, disable_db: None, capsys) -> None:  # noqa: ANN001
@@ -62,6 +63,42 @@ def test_cli_solve_with_invalid_input_returns_error(conflict_puzzle_path: Path, 
     captured = capsys.readouterr()
     assert exit_code == 2
     assert "输入无效" in captured.err
+
+
+def test_cli_solve_with_policy_and_compare(
+    positive_puzzle_path: Path,
+    disable_db: None,  # noqa: ANN001
+    capsys,
+) -> None:
+    exit_code = cli.main([
+        "solve",
+        str(positive_puzzle_path),
+        "--policy",
+        "human-lite",
+        "--compare-policy",
+        "default",
+    ])
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    payload = json.loads(captured.out)
+    assert "primary" in payload and "comparison" in payload
+    assert payload["primary"]["policy"] == "human-lite"
+
+
+def test_cli_solve_with_invalid_policy_reports_error(
+    positive_puzzle_path: Path,
+    disable_db: None,  # noqa: ANN001
+    capsys,
+) -> None:
+    exit_code = cli.main([
+        "solve",
+        str(positive_puzzle_path),
+        "--policy",
+        "unknown-policy",
+    ])
+    captured = capsys.readouterr()
+    assert exit_code == 2
+    assert "策略配置错误" in captured.err
 
 
 def test_cli_verify_reports_ok(example_puzzle_path: Path, example_solution_path: Path, capsys) -> None:  # noqa: ANN001
