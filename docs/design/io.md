@@ -1,4 +1,4 @@
-# I/O 契约（v1）
+# I/O 契约（v2）
 
 本文件定义 v1 的输入/输出 JSON 契约。任何 CLI 行为、示例、测试与实现都必须与本文件一致；如需变更，先改本文档，再改代码。
 
@@ -39,7 +39,11 @@
   "status": "unique",
   "solution": [[...9], ... 9],
   "stats": { "calls": 0, "backtracks": 0, "assignments": 0, "max_depth": 0 },
-  "trace": { "enabled": false, "mode": "summary", "counts": {} }
+  "trace": { "enabled": false, "mode": "summary", "counts": {}, "strategy_counts": {} },
+  "metrics": { ... },
+  "policy": "default",
+  "strategies": ["naked_single", ...],
+  "time_ms": 1234
 }
 ```
 
@@ -65,7 +69,16 @@
 ### `trace`（可选）
 
 - 默认（未开启 `--trace`）：可以省略 `trace` 字段，或输出 `trace.enabled=false`
-- 开启 `--trace`：输出 summary 模式（`mode=summary` + `counts`）。v1 不再导出逐步 `steps`
+- 开启 `--trace`：输出 summary 模式（`mode=summary` + `counts` + `strategy_counts`）。
+- `--trace --trace-mode steps`：除 summary 外，附加 `strategy_steps[]`（详见 `docs/design/trace.md`）。
+
+### 其它字段
+
+- `policy`：本次运行采用的策略组合（字符串）
+- `strategies`：若用户显式传入 `--strategies` 列表，则返回该顺序；否则为 `null`
+- `metrics`：`metrics.collector` 输出的聚合（含 `strategy_hits`）。
+- `time_ms`：本次 run 耗时（毫秒）
+- `comparison`：仅当 `--compare-policy` 被使用时返回 `{ "primary": {...}, "comparison": {...} }` 结构，分别对应两次 run 的完整 payload。
 
 ## 示例文件约定（建议）
 

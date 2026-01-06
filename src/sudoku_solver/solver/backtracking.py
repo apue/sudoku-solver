@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
-from typing import Dict, List, Set, Tuple
+from typing import List, Optional, Sequence, Tuple
 
 from sudoku_solver.board.grid import Grid
 from sudoku_solver.trace.tracer import Tracer, TraceSink
 from sudoku_solver.types import SolveResult, Stats
 from sudoku_solver.instrumentation.recorder import Recorder
 from sudoku_solver.metrics.collector import MetricsCollector
+from sudoku_solver.strategies.base import CandidateMap, StrategyStep
+from sudoku_solver.strategies.candidates import build_candidate_map
+from sudoku_solver.strategies.policies import StrategyRunner, build_runner
 
 
 class _Counter:
@@ -19,89 +22,74 @@ class _Counter:
         self.max_depth = 0
 
 
-Coord = Tuple[int, int]
+
+def _apply_strategy_step(
+    grid: Grid,
+    candidates: CandidateMap,
+    step: StrategyStep,
+    rec: Recorder,
+    ctr: _Counter,
+    deduced_stack: List[Tuple[int, int, int]],
+    depth: int,
+) -> tuple[bool, CandidateMap]:
+    rec.strategy.step(step, depth)
+    new_candidates = candidates
+    # Apply eliminations first so assignments can leverage refreshed candidates
+    for elim in step.eliminations:
+        key = (elim.row, elim.col)
+        cand = new_candidates.get(key)
+        if not cand:
+            continue
+        removed = cand.intersection(elim.values)
+        if not removed:
+            continue
+        cand.difference_update(removed)
+        if not cand:
+            rec.attempt.contradiction(elim.row, elim.col, None, reason="no_candidate", depth=depth)
+            return False, new_candidates
+    # Apply assignments
+    for assignment in step.assignments:
+        if grid.cells[assignment.row][assignment.col] != 0 and grid.cells[assignment.row][assignment.col] != assignment.value:
+            rec.attempt.contradiction(assignment.row, assignment.col, assignment.value, reason="conflict", depth=depth)
+            return False, new_candidates
+        if not grid.is_valid_placement(assignment.row, assignment.col, assignment.value):
+            rec.attempt.contradiction(
+                assignment.row, assignment.col, assignment.value, reason="invalid_candidate", depth=depth
+            )
+            return False, new_candidates
+        grid.set_cell(assignment.row, assignment.col, assignment.value)
+        ctr.assignments += 1
+        rec.attempt.assign(assignment.row, assignment.col, assignment.value, source="deduced", depth=depth)
+        deduced_stack.append((assignment.row, assignment.col, assignment.value))
+        new_candidates = build_candidate_map(grid)
+    return True, new_candidates
 
 
-def _build_candidates(grid: Grid) -> Dict[Coord, Set[int]]:
-    candidates: Dict[Coord, Set[int]] = {}
-    for r in range(9):
-        for c in range(9):
-            if grid.cells[r][c] != 0:
-                continue
-            allowed = {v for v in range(1, 10) if grid.is_valid_placement(r, c, v)}
-            candidates[(r, c)] = allowed
-    return candidates
-
-
-def _units() -> List[List[Coord]]:
-    units: List[List[Coord]] = []
-    # Rows
-    for r in range(9):
-        units.append([(r, c) for c in range(9)])
-    # Columns
-    for c in range(9):
-        units.append([(r, c) for r in range(9)])
-    # Boxes
-    for br in range(0, 9, 3):
-        for bc in range(0, 9, 3):
-            units.append([(r, c) for r in range(br, br + 3) for c in range(bc, bc + 3)])
-    return units
-
-
-UNITS = _units()
-
-
-def _apply_deductions(grid: Grid, rec: Recorder, ctr: _Counter, depth: int, deduced_stack: List[Tuple[int, int, int]]) -> bool:
+def _apply_deductions(
+    grid: Grid,
+    rec: Recorder,
+    ctr: _Counter,
+    depth: int,
+    deduced_stack: List[Tuple[int, int, int]],
+    runner: StrategyRunner | None,
+) -> tuple[bool, CandidateMap]:
+    candidates = build_candidate_map(grid)
+    if runner is None:
+        return True, candidates
     while True:
-        candidates = _build_candidates(grid)
         contradiction_cells = [(r, c) for (r, c), vals in candidates.items() if not vals]
         if contradiction_cells:
             for r, c in contradiction_cells:
                 rec.attempt.contradiction(r, c, None, reason="no_candidate", depth=depth)
-            return False
+            return False, candidates
 
-        progress = False
-        # Naked singles
-        singles = [((r, c), next(iter(vals))) for (r, c), vals in candidates.items() if len(vals) == 1]
-        for (r, c), value in singles:
-            grid.set_cell(r, c, value)
-            ctr.assignments += 1
-            rec.attempt.assign(r, c, value, source="deduced", depth=depth)
-            deduced_stack.append((r, c, value))
-            progress = True
-
-        if progress:
-            continue
-
-        # Hidden singles
-        for unit in UNITS:
-            appearance: Dict[int, List[Coord]] = {}
-            for r, c in unit:
-                if grid.cells[r][c] != 0:
-                    continue
-                vals = candidates.get((r, c))
-                if not vals:
-                    continue
-                for v in vals:
-                    appearance.setdefault(v, []).append((r, c))
-            hidden_found = False
-            for value, cells in appearance.items():
-                if len(cells) == 1:
-                    r, c = cells[0]
-                    grid.set_cell(r, c, value)
-                    ctr.assignments += 1
-                    rec.attempt.assign(r, c, value, source="deduced", depth=depth)
-                    deduced_stack.append((r, c, value))
-                    hidden_found = True
-                    progress = True
-                    break
-            if hidden_found:
-                break
-
-        if not progress:
+        step = runner.next_step(grid, candidates)
+        if step is None:
             break
-
-    return True
+        ok, candidates = _apply_strategy_step(grid, candidates, step, rec, ctr, deduced_stack, depth)
+        if not ok:
+            return False, candidates
+    return True, candidates
 
 
 def _revert_deductions(grid: Grid, rec: Recorder, deduced_stack: List[Tuple[int, int, int]], depth: int) -> None:
@@ -135,7 +123,7 @@ def _search(
     ctr: _Counter,
     solutions: List[List[List[int]]],
     max_solutions: int,
-    use_deductions: bool,
+    runner: StrategyRunner | None,
 ) -> None:
     if len(solutions) >= max_solutions:
         return
@@ -145,10 +133,14 @@ def _search(
     rec.search.update_depth(depth)
 
     deduced: List[Tuple[int, int, int]] = []
-    if use_deductions:
-        if not _apply_deductions(grid, rec, ctr, depth, deduced):
+    candidates: CandidateMap | None = None
+    if runner is not None:
+        ok, candidates = _apply_deductions(grid, rec, ctr, depth, deduced, runner)
+        if not ok:
             _revert_deductions(grid, rec, deduced, depth)
             return
+    else:
+        candidates = build_candidate_map(grid)
 
     empty = grid.first_empty()
     if empty is None:
@@ -163,17 +155,21 @@ def _search(
     r, c = empty
     rec.decision.choose_cell(r, c, depth)
     rec.decision.guess_point(depth)
-    for v in range(1, 10):
+    values: Sequence[int]
+    if candidates and (r, c) in candidates:
+        values = sorted(candidates[(r, c)])
+    else:
+        values = list(range(1, 10))
+    for v in values:
         if grid.is_valid_placement(r, c, v):
             grid.set_cell(r, c, v)
             ctr.assignments += 1
             rec.attempt.assign(r, c, v, source="guess", depth=depth)
-            _search(grid, depth + 1, rec, ctr, solutions, max_solutions, use_deductions)
+            _search(grid, depth + 1, rec, ctr, solutions, max_solutions, runner)
             if len(solutions) >= max_solutions:
                 grid.clear_cell(r, c)
                 _revert_deductions(grid, rec, deduced, depth)
                 return
-            # backtrack
             grid.clear_cell(r, c)
             ctr.backtracks += 1
             rec.state.unassign(r, c, v, reason="backtrack", depth=depth)
@@ -189,6 +185,8 @@ def solve_backtracking(
     trace_mode: str = "summary",
     max_solutions: int = 2,
     use_deductions: bool = True,
+    strategy_policy: str = "default",
+    strategy_override: Optional[Sequence[str]] = None,
 ):
     """Solve a Sudoku using DFS backtracking and detect up to 2 solutions."""
     if grid.givens_conflict():
@@ -204,7 +202,10 @@ def solve_backtracking(
     rec = Recorder([metrics, trace_sink])
     ctr = _Counter()
     solutions: List[List[List[int]]] = []
-    _search(grid, 0, rec, ctr, solutions, max_solutions, use_deductions)
+    runner: StrategyRunner | None = None
+    if use_deductions:
+        runner = build_runner(strategy_policy, strategy_override)
+    _search(grid, 0, rec, ctr, solutions, max_solutions, runner)
 
     if len(solutions) == 0:
         status = "unsat"

@@ -65,6 +65,50 @@ def _write_trace_file(args: argparse.Namespace, trace_obj: dict | None) -> None:
     target.write_text(json.dumps(trace_obj, ensure_ascii=False, indent=2))
 
 
+def _strategy_override(args: argparse.Namespace) -> list[str] | None:
+    names = getattr(args, "strategies", None)
+    if not names:
+        return None
+    values = [n.strip() for n in names.split(",") if n.strip()]
+    return values or None
+
+
+def _run_solver(
+    grid,
+    *,
+    trace_enabled: bool,
+    trace_mode: str,
+    use_deductions: bool,
+    policy: str,
+    strategy_override: list[str] | None,
+):
+    t0 = time.perf_counter()
+    sr, metrics = solve_backtracking(
+        grid,
+        trace_enabled=trace_enabled,
+        trace_mode=trace_mode,
+        use_deductions=use_deductions,
+        strategy_policy=policy,
+        strategy_override=strategy_override,
+    )
+    elapsed_ms = int((time.perf_counter() - t0) * 1000)
+    return sr, metrics, elapsed_ms
+
+
+def _format_run(sr, metrics, elapsed_ms: int, policy: str, strategy_override: list[str] | None) -> dict:
+    trace_obj = sr.trace if sr.trace is not None else {"enabled": False, "mode": "summary", "counts": {}}
+    return {
+        "policy": policy,
+        "strategies": strategy_override,
+        "status": sr.status,
+        "solution": sr.solution,
+        "stats": asdict(sr.stats),
+        "trace": trace_obj,
+        "metrics": metrics,
+        "time_ms": elapsed_ms,
+    }
+
+
 def _cmd_solve(args: argparse.Namespace) -> int:
     """Solve a puzzle JSON and print result JSON to stdout."""
     try:
@@ -73,14 +117,22 @@ def _cmd_solve(args: argparse.Namespace) -> int:
         print(f"输入无效：{e}", file=sys.stderr)
         return 2
 
-    t0 = time.perf_counter()
     trace_enabled = _trace_requested(args)
-    sr, metrics = solve_backtracking(
-        puzzle,
-        trace_enabled=trace_enabled,
-        trace_mode="summary",
-        use_deductions=_deductions_enabled(args),
-    )
+    trace_mode = getattr(args, "trace_mode", "summary")
+    strategy_override = _strategy_override(args)
+    try:
+        sr, metrics, elapsed_ms = _run_solver(
+            puzzle.clone(),
+            trace_enabled=trace_enabled,
+            trace_mode=trace_mode,
+            use_deductions=_deductions_enabled(args),
+            policy=getattr(args, "policy", "default"),
+            strategy_override=strategy_override,
+        )
+    except ValueError as exc:
+        print(f"策略配置错误：{exc}", file=sys.stderr)
+        return 2
+
     # verify 成功才认为可持久化
     verify_ok = False
     if sr.solution is not None:
@@ -88,20 +140,35 @@ def _cmd_solve(args: argparse.Namespace) -> int:
             verify_ok = bool(verify_solution(puzzle, sr.solution))
         except Exception:  # noqa: BLE001
             verify_ok = False
-    elapsed_ms = int((time.perf_counter() - t0) * 1000)
 
-    # 默认方法标识（仅回溯）
-    method = "bt"
+    primary_payload = _format_run(sr, metrics, elapsed_ms, args.policy, strategy_override)
+    trace_obj = primary_payload["trace"]
+    comparison_policy = getattr(args, "compare_policy", None)
+    if comparison_policy:
+        try:
+            comparison_sr, comparison_metrics, comparison_elapsed = _run_solver(
+                puzzle.clone(),
+                trace_enabled=False,
+                trace_mode="summary",
+                use_deductions=_deductions_enabled(args),
+                policy=comparison_policy,
+                strategy_override=None,
+            )
+        except ValueError as exc:
+            print(f"策略配置错误：{exc}", file=sys.stderr)
+            return 2
+        comparison_payload = _format_run(
+            comparison_sr,
+            comparison_metrics,
+            comparison_elapsed,
+            comparison_policy,
+            None,
+        )
+        output_obj = {"primary": primary_payload, "comparison": comparison_payload}
+    else:
+        output_obj = primary_payload
 
-    trace_obj = sr.trace if sr.trace is not None else {"enabled": False, "mode": "summary", "counts": {}}
-    result = {
-        "status": sr.status,
-        "solution": sr.solution,
-        "stats": asdict(sr.stats),
-        "trace": trace_obj,
-        "metrics": metrics,
-    }
-    out = json.dumps(result, ensure_ascii=False, indent=2)
+    out = json.dumps(output_obj, ensure_ascii=False, indent=2)
     print(out)
     _write_trace_file(args, trace_obj)
 
@@ -112,7 +179,7 @@ def _cmd_solve(args: argparse.Namespace) -> int:
             writer.ensure_schema()
             row = build_row_from_outputs(
                 test_case_id=Path(args.puzzle).name,
-                method=method,
+                method=args.policy,
                 status=sr.status,
                 metrics=metrics,
                 time_ms=elapsed_ms,
@@ -145,13 +212,22 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_solve = sub.add_parser("solve", help="求解一个数独 JSON 文件")
     p_solve.add_argument("puzzle", help="输入 JSON 文件路径")
-    p_solve.add_argument("--trace", action="store_true", help="开启 trace summary（mode=summary）")
-    p_solve.add_argument("--trace-file", help="将 trace summary 写入文件（默认写入 var/traces/）")
+    p_solve.add_argument("--trace", action="store_true", help="开启 trace（默认 summary）")
+    p_solve.add_argument(
+        "--trace-mode",
+        choices=["summary", "steps"],
+        default="summary",
+        help="trace 模式（默认 summary，可选 steps）",
+    )
+    p_solve.add_argument("--trace-file", help="将 trace 输出写入文件（默认写入 var/traces/）")
     p_solve.add_argument(
         "--no-deductions",
         action="store_true",
         help="禁用候选推理（默认启用 naked/hidden single 推进）",
     )
+    p_solve.add_argument("--policy", default="default", help="策略组合（默认 default）")
+    p_solve.add_argument("--strategies", help="自定义策略顺序，以逗号分隔，覆盖 policy")
+    p_solve.add_argument("--compare-policy", help="额外运行另一 policy 输出对比")
     # DB 开关/路径
     p_solve.add_argument("--db", help="结果持久化 SQLite 路径（默认 var/results.sqlite3）")
     p_solve.add_argument("--no-db", action="store_true", help="禁用结果持久化（默认开启，verify 成功后写入）")

@@ -15,6 +15,7 @@ class MetricsCollector:
         self.deduced_assignments = 0
         self.guessed_assignments = 0
         self.solutions_found = 0
+        self.strategy_hits: Dict[str, int] = {}
 
     # Recorder sink methods
     def decision_guess_point(self, depth: int) -> None:
@@ -47,6 +48,10 @@ class MetricsCollector:
     def result_solution_found(self) -> None:
         self.solutions_found += 1
 
+    def strategy_step(self, step: Any, depth: int) -> None:  # noqa: ARG002
+        name = getattr(step, "strategy", "unknown")
+        self.strategy_hits[name] = self.strategy_hits.get(name, 0) + 1
+
     # Public API
     def finalize(self, status: str) -> Dict[str, Any]:
         return {
@@ -60,4 +65,5 @@ class MetricsCollector:
             "deduced_assignments": self.deduced_assignments,
             "guessed_assignments": self.guessed_assignments,
             "solutions_found": self.solutions_found,
+            "strategy_hits": dict(self.strategy_hits),
         }

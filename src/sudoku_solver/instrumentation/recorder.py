@@ -18,6 +18,7 @@ class Recorder:
         self.state = _State(self)
         self.search = _Search(self)
         self.result = _Result(self)
+        self.strategy = _Strategy(self)
 
     def _call(self, name: str, *args: Any, **kwargs: Any) -> None:
         for s in self._sinks:
@@ -70,3 +71,11 @@ class _Result:
 
     def solution_found(self) -> None:
         self._rec._call("result_solution_found")
+
+
+class _Strategy:
+    def __init__(self, rec: Recorder) -> None:
+        self._rec = rec
+
+    def step(self, step: Any, depth: int) -> None:
+        self._rec._call("strategy_step", step, depth)

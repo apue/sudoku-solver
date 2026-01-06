@@ -1,6 +1,6 @@
-# 架构总览（v1）
+# 架构总览（v2）
 
-本项目 v1 目标：实现**标准 9×9 数独**求解（纯回溯），并输出结构化的 `stats`（常开）与 `trace`（可选），为后续“教学模式/规则系统”打基础。
+v2 目标：在 v1.1 的“回溯 + 裸显单/隐显单”基础上，引入策略 policy runner 与 benchmark/compare 工具，为 v3 可解释性/UI 打接口。
 
 ## 范围（v1）
 
@@ -8,9 +8,11 @@
 
 - 标准 9×9 数独约束：行/列/3×3 宫
 - 回溯求解：区分 `unique / multiple / unsat`
+- 候选策略：`strategies/` + policy runner（默认含裸显单/裸对/pointing/claiming）
 - `verify`：验证给定 puzzle 与 solution 的合法性
 - `stats`：始终输出（例如回溯次数、递归调用数）
-- `trace`：默认关闭，`--trace` 打开
+- `trace`：默认 summary，可选 steps（包含 `strategy_steps` schema）
+- Policy 对比与 benchmark：`--compare-policy`、`scripts/policy_benchmark.py`
 
 不包含：
 
@@ -25,7 +27,9 @@
 - `solver/`：求解器实现（v1：`backtracking`）
 - `verify/`：验证器（可作为独立命令）
 - `io/`：读写 JSON（输入 IR 与输出 schema）
-- `trace/`：统计与可选步骤流（cross-cutting）
+- `trace/`：统计与可选步骤流（cross-cutting），输出 summary + 可选策略步骤
+- `strategies/`：策略库（naked/hidden single, naked pair, pointing, claiming）与 policy/runner
+- `benchmarks/` + `scripts/policy_benchmark.py`：题库/对比工具
 - `cli/`：命令行入口（用户交互中文、代码标识英文）
 
 ## 数据流
