@@ -61,6 +61,15 @@ class NotebookRun:
         return sorted({step.strategy for step in self.steps})
 
 
+def resolve_project_root(start: Optional[Path] = None) -> Path:
+    """Walk parent directories to locate the repository root (pyproject.toml)."""
+    path = start or Path.cwd()
+    for candidate in [path, *path.parents]:
+        if (candidate / "pyproject.toml").exists():
+            return candidate
+    return path
+
+
 def _load_strategy_steps(trace: Dict[str, object]) -> List[StrategyStepPayload]:
     raw_steps: Iterable[Dict[str, object]] = trace.get("strategy_steps", []) if trace else []
     parsed: List[StrategyStepPayload] = []
@@ -129,6 +138,11 @@ def solve_for_notebook(
 ) -> NotebookRun:
     """Run the solver with trace steps enabled for notebook visualization."""
     puzzle_file = Path(puzzle_path)
+    if not puzzle_file.exists():
+        project_root = resolve_project_root()
+        candidate = project_root / puzzle_file
+        if candidate.exists():
+            puzzle_file = candidate
     grid = load_puzzle(puzzle_file)
     base_grid = grid.clone()
     import time

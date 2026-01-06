@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from sudoku_solver.notebook.visualizer import solve_for_notebook
+from sudoku_solver.notebook.visualizer import resolve_project_root, solve_for_notebook
 
 
 def test_solve_for_notebook_produces_states(positive_puzzle_path):
@@ -24,3 +24,13 @@ def test_render_widget_optional_dependency(positive_puzzle_path):
 
     widget = build_policy_explorer(positive_puzzle_path, policy="human-lite")
     assert hasattr(widget, "children")
+
+
+def test_resolve_project_root_finds_pyproject(tmp_path, monkeypatch):
+    fake_root = tmp_path / "proj"
+    fake_root.mkdir()
+    (fake_root / "pyproject.toml").write_text("[build-system]\n")
+    nested = fake_root / "notebooks"
+    nested.mkdir()
+    result = resolve_project_root(nested)
+    assert result == fake_root
